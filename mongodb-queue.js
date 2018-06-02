@@ -11,6 +11,7 @@
  **/
 
 var crypto = require('crypto')
+var async = require('async')
 
 // some helper functions
 function id() {
@@ -155,6 +156,75 @@ Queue.prototype.get = function(opts, callback) {
         callback(null, msg)
     })
 }
+Queue.prototype.getAll = function(opts, callback) {
+    var self = this
+    if ( !callback ) {
+        callback = opts
+        opts = {}
+    }
+
+    var visibility = opts.visibility || self.visibility
+    var query = {
+        deleted : null,
+        visible : { $lte : now() },
+    }
+    var sort = {
+        _id : 1
+    }
+    var update = {
+        $inc : { tries : 1 },
+        $set : {
+            ack     : id(),
+            visible : nowPlusSecs(visibility),
+        }
+    }
+
+    self.col.find(query, function(err, messages) {
+        var retMsgs = []
+        async.map(messages, function(msg, cb) {
+            msg.tries = msg.tries + 1
+            msg.ack = id()
+            msg.visible  = nowPlusSecs(visibility)
+            msg.save(function(err) {
+                var m = {
+                    // convert '_id' to an 'id' string
+                    id      : '' + msg._id,
+                    ack     : msg.ack,
+                    payload : msg.payload,
+                    tries   : msg.tries,
+                }
+                cb(null, m)
+            })
+        }, function(err, results) {
+            if ( self.deadQueue ) {
+                // check the tries
+                var deadQueueMsgs = []
+                var deadQueueMsgAcks = []
+                results.forEach(function(msg) {
+                    if ( msg.tries > self.maxRetries ) {
+                        deadQueueMsgs.push(msg)
+                        deadQueueMsgAcks.push(msg.ack)
+                    }
+                })
+                if (deadQueueMsgs.length) {
+                    // So:
+                    // 1) add this message to the deadQueue
+                    // 2) ack this message from the regular queue
+                    // 3) call ourself to return a new message (if exists)
+                    self.deadQueue.add(deadQueueMsgs, function(err) {
+                        if (err) return callback(err)
+                        self.ackMany(deadQueueMsgAcks, function(err) {
+                            if (err) return callback(err)
+                            self.getAll(callback)
+                        })
+                    })
+                    return
+                }
+            }
+            callback(null, msg)
+        })
+    })
+}
 
 Queue.prototype.ping = function(ack, opts, callback) {
     var self = this
@@ -202,6 +272,50 @@ Queue.prototype.ack = function(ack, callback) {
             return callback(new Error("Queue.ack(): Unidentified ack : " + ack))
         }
         callback(null, '' + msg.value._id)
+    })
+}
+
+Queue.prototype.ackMany = function(ackArray, callback) {
+    var self = this
+
+    var query = {
+        ack     : {$in : ackArray},
+        visible : { $gt : now() },
+        deleted : null,
+    }
+    var update = {
+        $set : {
+            deleted : now(),
+        }
+    }
+    async.waterfall([
+        function(cb) {
+            self.col.find(query, function(err, messages) {
+                if (err) return cb(err);
+                if (!messages || !messages.length) {
+                    return cb(new Error("Queue.ackMany(): Unidentified acks: " + ackArray))
+                }
+                var message_ids = []
+                messages.forEach(function(msg) {
+                    message_ids.push(msg._id)
+                })
+                cb(null, message_ids)
+            })
+        },
+        function(message_ids, cb) {
+            self.col.updateMany(query, update, function(err, msgs, blah) {
+                if (err) return cb(err)
+                if ( !msg.value ) {
+                    return cb(new Error("Queue.ack(): Unidentified ack : " + ackArray))
+                }
+                // TODO : Check how this works
+
+                cb(null, message_ids)
+            })
+        }
+    ], function(err, results) {
+        if (err) return callback(err);
+        return callback(null, results)
     })
 }
 
