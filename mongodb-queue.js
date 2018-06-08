@@ -271,53 +271,53 @@ Queue.prototype.ack = function(ack, callback) {
         if ( !msg.value ) {
             return callback(new Error("Queue.ack(): Unidentified ack : " + ack))
         }
-        callback(null, '' + msg.value._id)
+        callback(null, msg.value)
     })
 }
 
-Queue.prototype.ackMany = function(ackArray, callback) {
-    var self = this
+// Queue.prototype.ackMany = function(ackArray, callback) {
+//     var self = this
 
-    var query = {
-        ack     : {$in : ackArray},
-        visible : { $gt : now() },
-        deleted : null,
-    }
-    var update = {
-        $set : {
-            deleted : now(),
-        }
-    }
-    async.waterfall([
-        function(cb) {
-            self.col.find(query, function(err, messages) {
-                if (err) return cb(err);
-                if (!messages || !messages.length) {
-                    return cb(new Error("Queue.ackMany(): Unidentified acks: " + ackArray))
-                }
-                var message_ids = []
-                messages.forEach(function(msg) {
-                    message_ids.push(msg._id)
-                })
-                cb(null, message_ids)
-            })
-        },
-        function(message_ids, cb) {
-            self.col.updateMany(query, update, function(err, msgs, blah) {
-                if (err) return cb(err)
-                if ( !msg.value ) {
-                    return cb(new Error("Queue.ack(): Unidentified ack : " + ackArray))
-                }
-                // TODO : Check how this works
+//     var query = {
+//         ack     : {$in : ackArray},
+//         visible : { $gt : now() },
+//         deleted : null,
+//     }
+//     var update = {
+//         $set : {
+//             deleted : now(),
+//         }
+//     }
+//     async.waterfall([
+//         function(cb) {
+//             self.col.find(query, function(err, messages) {
+//                 if (err) return cb(err);
+//                 if (!messages || !messages.length) {
+//                     return cb(new Error("Queue.ackMany(): Unidentified acks: " + ackArray))
+//                 }
+//                 var message_ids = []
+//                 messages.forEach(function(msg) {
+//                     message_ids.push(msg._id)
+//                 })
+//                 cb(null, message_ids)
+//             })
+//         },
+//         function(message_ids, cb) {
+//             self.col.updateMany(query, update, function(err, msgs, blah) {
+//                 if (err) return cb(err)
+//                 if ( !msg.value ) {
+//                     return cb(new Error("Queue.ack(): Unidentified ack : " + ackArray))
+//                 }
+//                 // TODO : Check how this works
 
-                cb(null, message_ids)
-            })
-        }
-    ], function(err, results) {
-        if (err) return callback(err);
-        return callback(null, results)
-    })
-}
+//                 cb(null, message_ids)
+//             })
+//         }
+//     ], function(err, results) {
+//         if (err) return callback(err);
+//         return callback(null, results)
+//     })
+// }
 
 Queue.prototype.clean = function(callback) {
     var self = this
