@@ -278,7 +278,15 @@ Queue.prototype.findOneAndAck = function(q, callback) {
     var self = this
 
     var query = {
-        payload : q
+    }
+    var keys = Object.keys(q)
+    if (keys && keys.length) {
+        keys.forEach(function(it) {
+            query['payload.' + it] = q[it]
+        })
+    }
+    else {
+        return callback(null, null)
     }
     var update = {
         $set : {
