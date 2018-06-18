@@ -274,6 +274,25 @@ Queue.prototype.ack = function(ack, callback) {
         callback(null, msg.value)
     })
 }
+Queue.prototype.findOneAndAck = function(q, callback) {
+    var self = this
+
+    var query = {
+        payload : q
+    }
+    var update = {
+        $set : {
+            deleted : now(),
+        }
+    }
+    self.col.findOneAndUpdate(query, update, { returnOriginal : false }, function(err, msg, blah) {
+        if (err) return callback(err)
+        if ( !msg.value ) {
+            return callback(new Error("Queue.findOneAndAck(): Unidentified item : " + JSON.stringify(q)))
+        }
+        callback(null, msg.value)
+    })
+}
 
 // Queue.prototype.ackMany = function(ackArray, callback) {
 //     var self = this
