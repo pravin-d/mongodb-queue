@@ -69,6 +69,9 @@ Queue.prototype.add = function(payload, opts, callback) {
         callback = opts
         opts = {}
     }
+    if (typeof callback !== 'function') {
+        callback = function(){}
+    }
     var delay = opts.delay || self.delay
     var visible = delay ? nowPlusSecs(delay) : now()
 
@@ -104,7 +107,9 @@ Queue.prototype.get = function(opts, callback) {
         callback = opts
         opts = {}
     }
-
+    if (typeof callback !== 'function') {
+        callback = function(){}
+    }
     var visibility = opts.visibility || self.visibility
     var query = {
         deleted : null,
@@ -162,7 +167,9 @@ Queue.prototype.getAll = function(opts, callback) {
         callback = opts
         opts = {}
     }
-
+    if (typeof callback !== 'function') {
+        callback = function(){}
+    }
     var visibility = opts.visibility || self.visibility
     var query = {
         deleted : null,
@@ -232,7 +239,9 @@ Queue.prototype.ping = function(ack, opts, callback) {
         callback = opts
         opts = {}
     }
-
+    if (typeof callback !== 'function') {
+        callback = function(){}
+    }
     var visibility = opts.visibility || self.visibility
     var query = {
         ack     : ack,
